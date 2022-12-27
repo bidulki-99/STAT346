@@ -1,0 +1,203 @@
+---
+title: "STAT346: Statistical Data Science I"
+subtitle: "Final: Thursday, Dec 16 2021, 05:00--06:15 p.m."
+author: "Yoon Minseo / 2021320322"
+output:
+  pdf_document: default
+  word_document: default
+fontsize: 11pt
+---
+
+# 0
+```{r echo=TRUE}
+rm(list = ls())
+ls()
+```
+
+# 1
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(dslabs)
+data(heights)
+```
+
+## (a)
+```{r echo=TRUE}
+mean_sd <- heights %>%
+  group_by(sex) %>%
+  summarize(sample_mean = mean(height), sample_sd = sd(height))
+
+mean_sd
+```
+
+## (b)
+```{r echo=TRUE}
+x = heights %>% filter(sex == 'Female') %>% pull(height)
+F <- function(a) mean(x <= a)
+1 - F(64.5)
+```
+
+## c
+```{r echo=TRUE}
+B <- 1000
+set.seed(100)
+tallest <- replicate(B, {
+  simulated_data <- rnorm(500, mean_sd$sample_mean, mean_sd$sample_sd)
+  max(simulated_data)
+})
+
+mean(tallest > 80)
+```
+
+# 2
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(dslabs)
+library(lubridate)
+data('polls_us_election_2016')
+polls = polls_us_election_2016 %>% filter(enddate >= '2016-10-31' & state == 'U.S.')
+```
+
+## a
+```{r echo=TRUE}
+N <- polls$samplesize[2]
+x_hat <- polls$rawpoll_trump[2] / 100
+se_hat <- sqrt(x_hat * (1 - x_hat) / N)
+cat('The 99% confidence interval for the election night proportion is [',
+    x_hat + qnorm(0.005) * se_hat, ',', x_hat + qnorm(0.995) * se_hat, ']')
+```
+
+## b
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(dplyr)
+trump <- polls %>%
+  mutate(N = samplesize, x_hat = rawpoll_trump / 100,
+         se_hat = sqrt(x_hat * (1 - x_hat) / N),
+         lower = x_hat + qnorm(0.005) * se_hat, 
+         upper = x_hat + qnorm(0.995) * se_hat) %>%
+  select(x_hat, lower, upper, grade)
+head(trump)
+```
+```{r echo=TRUE}
+p = 0.461
+trump2 = trump %>% 
+  mutate(hit = case_when(lower <= p & upper >= p ~ "Include", TRUE ~ "Fail")) %>%
+  select(lower, upper, hit, grade)
+trump2 %>% head()
+```
+
+## c
+
+### c1
+```{r echo=TRUE}
+trump2 %>%
+  summarize(missing_value = sum(is.na(grade)))
+```
+
+### c2
+```{r echo=TRUE}
+trump3 <- trump2 %>%
+  filter(!is.na(grade)) %>%
+  mutate(grade2 = case_when(
+    grade %in% c('A+', 'A', 'A-') ~ 'A',
+    grade %in% c('B+', 'B', 'B-') ~ 'B',
+    TRUE ~ 'Others'
+  ))
+head(trump3)
+```
+
+### c3
+```{r echo=TRUE}
+# tab <- trump3 %>% 
+#   summarize(include_A = sum(hit == 'Include' & grade2 == 'A'), 
+#             fail_A = sum(hit == 'Fail' & grade2 == 'A'), 
+#             include_B = sum(hit == 'Include' & grade2 == 'B'), 
+#             fail_B = sum(hit == 'Fail' & grade2 == 'B')) %>%
+#   pivot_longer(c('include_A', 'fail_A', 'include_B', 'fail_B'), 
+#                names_to = 'name', values_to = 'num') %>%
+#   separate(name, c('hit', 'grade')) %>% 
+#   pivot_wider(names_from = grade, values_from = num)
+# tab
+
+tab <- table(trump3$hit[trump3$grade2 != 'Others'], 
+             trump3$grade2[trump3$grade2 != 'Others'])
+tab
+```
+
+### c4
+```{r echo=TRUE, warning=FALSE}
+# tab %>%
+#   select(-hit) %>%
+#   chisq.test()
+
+chisq.test(tab)
+```
+
+### c5
+Answer: 0.3558, larger, do not reject
+
+## d
+```{r echo=TRUE}
+polls_us_election_2016 %>%
+  summarize(proportion =
+              sum(year(startdate) == 2016 & month(startdate) == 9) 
+            / length(startdate))
+```
+
+# 3
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(Lahman)
+library(broom)
+data(Teams)
+data(Batting)
+data(Salaries)
+```
+
+## a
+```{r echo=TRUE}
+fit3 = Teams %>% 
+  filter(yearID %in% 1961:2015) %>% 
+  mutate(BB = BB/G, singles = (H-X2B-X3B-HR)/G, doubles = X2B/G, 
+         triples = X3B/G, HR = HR/G, R = R/G) %>%
+  lm(R ~ BB + singles + doubles + triples + HR, data = .)
+tidy(fit3, conf.int = T)
+```
+
+## b
+```{r echo=TRUE}
+Teams %>% 
+  filter(yearID == 2016) %>% 
+  mutate(BB = BB/G, singles = (H-X2B-X3B-HR)/G, doubles = X2B/G, 
+         triples = X3B/G, HR = HR/G, R = R/G) %>%
+  mutate(R_hat = predict(fit3, newdata = .)) %>%
+  summarize(correlation = cor(R, R_hat))
+```
+
+## c
+```{r echo=TRUE}
+Batting1 <- Batting %>% filter(yearID == 2015)
+Salaries1 <- Salaries %>% filter(yearID == 2015)
+Salaries1 %>%
+  left_join(Batting1, by = 'playerID') %>%
+  head(6)
+```
+
+# 4
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(dslabs)
+data(admissions)
+dat <- admissions %>% dplyr::select(-applicants)
+```
+
+## a
+```{r echo=TRUE}
+dat %>%
+  pivot_wider(names_from = gender, values_from = admitted)
+```
+
+## b
+```{r echo=TRUE}
+tmp <- admissions %>%
+  pivot_longer(c('admitted', 'applicants'), names_to = 'key', values_to = 'value')
+head(tmp)
+```

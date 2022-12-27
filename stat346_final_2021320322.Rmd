@@ -1,0 +1,258 @@
+---
+title: "STAT346: Statistical Data Science I"
+subtitle: "Final: Thursday, Dec 15, 2022, 02:00--03:15 p.m."
+output:
+  pdf_document: default
+  word_document: default
+fontsize: 11pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4, fig.align ="center", out.width = "80%", warning=FALSE, message=FALSE) # global options
+library(tidyverse)
+library(ggplot2)
+```
+
+
+# Instructions
+1. This exam covers course materials (Chapters 11--18).
+
+
+1. You may use any books or online resources you want during this examination,
+but you may not communicate with any person other than your examiner or your TAs.
+
+1. You are required to use the RStudio IDE for this exam. 
+
+1. You should work on the provided exam template.
+When you finalize your exam, you should submit your paper in pdf 
+as well as its .rmd source file. They should have the following name:
+
+   + `stat346_final_yourID.pdf` 
+   + `stat346_final_yourID.rmd`
+
+1. You should submit your paper no later than 3:20 p.m. After that, there will be a deduction for the late submission (2 points per 1 minute). Still you have to submit your paper by 3:30 p.m. 
+ 
+
+---
+
+
+# Problem Set \#0 (5 Points)
+Run the following code, and show the result.
+```{r echo=TRUE}
+rm(list = ls())
+ls()
+```
+
+# Problem Set \#1 (20 Points)
+We use the `Teams`, `Batting` and `Salaries `  data by calling `library(Lahman)`:
+
+```{r}
+library(Lahman)
+library(broom)
+data(Teams)
+data(Batting)
+data(Salaries)
+```
+
+For (a)-(b), use the `Teams` data. 
+\vspace{0.5cm}
+
+ (a) [5 point] We use data from 1961 to 2001, and use `BB`, `singles`, `doubles`, `triples`, and `HR` (per game) as explanatory variables to predict  `R` (run per game). Please complete the following program first, and provide the fitted regression formula. 
+```{r echo=TRUE}
+fit = Teams %>% filter(yearID %in% 1961:2001) %>%
+   mutate(BB = BB/G,
+          singles = (H-X2B-X3B-HR)/G,
+          doubles = X2B/G,
+          triples = X3B/G,
+          HR = HR/G,
+          R = R/G) %>%
+   lm(R ~ BB + singles + doubles + triples + HR, data = .)
+tidy(fit, conf.int = T)
+```
+Answer: $\hat{R}\ = -2.77 + 0.37BB + 0.52singles + 0.77doubles + 1.24triples + 1.44HR$
+
+
+\vspace{0.5cm}
+ (b) [10 points] Suppose we obtained the average number of team plate appearances per game as 38.74. Then we compute the per-plate-appearance rates for players on data from 1998-2001. Then we filter out players with less than 200 plate appearances per year and compute player-specific predicted runs in the object `R_hat`. Then make a ggplot of `R_hat` versus `R`. Interpret the prediction result using `R` and `R_hat` for the first player `abreubo01`. 
+```{r echo=TRUE}
+pa_per_game = 38.74
+players = Batting %>%
+   filter(yearID %in% 1998:2001) %>%
+   group_by(playerID) %>%
+   mutate(PA = BB+AB) %>%
+   summarize(G=sum(PA)/pa_per_game,
+             BB = sum(BB)/G, singles = sum(H-X2B-X3B-HR)/G,
+             doubles = sum(X2B)/G, triples = sum(X3B)/G,
+             HR = sum(HR)/G, AVG = sum(H)/sum(AB),
+             PA = sum(PA), R = sum(R)/G) %>%
+   filter(PA >= 800) %>%
+   select(-G) %>%
+   mutate(R_hat = predict(fit, newdata = .))
+head(players)
+ggplot(aes(x = R, y = R_hat), data = players) +
+geom_point()
+```
+Answer: For the first player abreubo01, Real value of R is 6.05 and Predicted value of R (R_hat) is 6.95.
+
+Predicted value of R is overestimated (by 0.9) to real value of R.
+
+\vspace{0.5cm}
+(c) [5 points] Select three variables `yearID`, `playerID` and `salary` in the data `Salaries`. Then join `players` for the year 2002 with this data for the year 2002 by `playerID`. Here we keep the rows in `players` data. Show the first 6 observations.
+
+```{r echo=TRUE}
+Salaries1 <- Salaries %>%
+   filter(yearID == 2002) %>%
+   select(yearID, playerID, salary)
+
+left_join(players, Salaries1, by = "playerID") %>%
+   head(6)
+```
+
+# Problem Set \#2 (40 Points)
+In every problems (a)--(e), *set the seed number as 2022* at the beginning.
+
+(a) [5 points] Generate the data consisting of zeroes and ones where we obtain 1 with probability 0.3. The size of the data is $10^4$ and we treat this data as our population. Save this population data into the object name `vote`. Check that the true proportion $p$ is 0.295.
+```{r echo=TRUE}
+set.seed(2022)
+vote <- sample(c(0, 1), size = 10^4, replace = TRUE, prob = c(0.7, 0.3))
+p <- mean(vote)
+p
+```
+
+(b) [5 points] Take a random sample of size 100 (without replacement) from the `vote`, and calculate the sample proportion.
+```{r echo=TRUE}
+set.seed(2022)
+prop <- sample(vote, size = 100)
+mean(prop)
+```
+Answer: The sample proportion is 0.25.
+
+(c) [10 points] Run a Monte Carlo simulation to confirm that a 90\% confidence interval includes $p$ about 90\% of the time. For this, repeat (1000 times) the random sampling from the population data `vote` where the sample size is `100` and calculate the sample mean and check if the true proportion is included or not in the approximate 90\% confidence interval based on the sample data.
+```{r echo=TRUE}
+set.seed(2022)
+n = 100 #sample size
+B = 1000 #iteration number
+inside = replicate(B, {
+   x = sample(c(0,1), size = n, replace = TRUE,
+              prob = c(1-p, p)) #random sample from vote
+   x_hat = mean(x) # compute the average
+   se_hat = sqrt(x_hat * (1 - x_hat) / n) # compute the standard error
+   between(p, x_hat + qnorm(0.05) * se_hat,
+           x_hat + qnorm(0.95) * se_hat) # use `between` function
+})
+mean(inside)
+```
+Answer: 90% confidence interval includes p about 88.8% of the time
+
+(d) [10 points] Use a Monte Carlo simulation to learn the distribution of the sample mean of size 100. Obtain 90\% confidence interval with the iteration number as $10^4$.
+```{r echo=TRUE}
+set.seed(2022)
+B = 10^4
+vote_p = replicate(B, {
+   X = sample(vote, size = 100) # random sample from vote
+   mean(X) # compute the average
+})
+quantile(vote_p, c(0.05, 0.95))# compute the 90% confidence interval
+```
+Answer: [0.22, 0.37]
+
+(e) [10 points] Set the seed number as 2022 and obtain 90\% confidence interval for the true proportion using bootstrap. Use the bootstrap iteration number as $10^4$. Compare this with 90\% confidence interval based on the CLT.
+```{r echo=TRUE}
+set.seed(2022)
+X <- sample(vote, size = n)
+B = 10^4
+vote_p_star = replicate(B, {
+   X_star = sample(X, size = n, replace = TRUE)
+   mean(X_star)
+})
+quantile(vote_p_star, c(0.05, 0.95))
+```
+```{r echo=TRUE}
+mean(X) + qnorm(0.95) * sd(X) / sqrt(100) * c(-1, 1)
+```
+Answer: 90\% confidence interval for the true proportion using bootstrap is [0.18, 0.32].
+
+90% confidence interval by CLT is [0.1784169, 0.3215831].
+
+a confidence interval constructed with the bootstrap is much closer to one constructed with the theoretical
+distribution.
+
+\newpage
+
+# Problem Set \#3 (15 Points)
+We consider `UCBAdmission` data set, which contains data on applicants to graduate school at Berkeley for the six largest departments in 1973 classified by admission and gender.
+```{r}
+data(UCBAdmissions)
+dat = as.data.frame(UCBAdmissions)[c("Dept","Admit","Gender","Freq")]
+```
+
+(a) [5 points] If we think of an observation as a `Dept`, then this data `dat` is not tidy. Use the `pivot_wider` function to wrangle into tidy shape: one row for each major with variable names as `Admitted_Male`, `Rejected_Male`, `Admitted_Female`, and `Rejected_Female`. Save this data set as an object `dat1` (as shown below).
+```{r echo=TRUE}
+dat1 <- dat %>%
+   pivot_wider(names_from = c(Admit, Gender), values_from = Freq)
+dat1
+```
+
+(b) [5 points] Now use `pivot_longer` to wrangle the above  `dat1` so that we obtain the following `dat2` (head part is shown).
+```{r echo=TRUE}
+dat2 <- dat1 %>%
+   pivot_longer(-Dept, names_to = 'Admit_Gender', values_to = 'Freq')
+head(dat2)
+```
+
+(c) [5 points] Note that the above `dat2` has a variable `Admit_Gender` containing information from the two variables `Admit` and `Gender`. Use `separate` function to obtain the same data as `dat`  as shown below (only the head part is shown and column types may be different from those in `dat').
+```{r echo=TRUE}
+dat2 %>%
+   separate(Admit_Gender, c('Admit', 'Gender')) %>%
+   head()
+```
+
+\newpage
+
+
+ 
+# Problem Set \#4 (20 Points)
+For this problem, we use actual polls from the 2016 election. We will use all the national polls.
+```{r}
+library(dslabs)
+library(lubridate)
+data("polls_us_election_2016")
+polls = polls_us_election_2016 %>% filter(state == "U.S.")
+```
+(a) [5 points] Sort `startdate` and show the first three dates. Consider the variable `enddate`, and find the proportion of October 2016. 
+```{r echo=TRUE}
+polls %>%
+   arrange(startdate) %>%
+   head(3)
+```
+Answer: 2015-11-13, 2015-11-15, 2015-11-16
+
+```{r echo=TRUE}
+polls %>%
+   summarize(proportion =
+                sum(year(enddate) == 2016 & month(enddate) == 10) 
+             / length(enddate))
+```
+Answer: 21.06691%
+
+
+(b) [5 points] Group all the polls by week of the year using `round_date` function (with `startdate` variable), and compute the average `rawpoll_trump` per week (saving this as `ave_T`), and draw a scatter plot using `qplot` function.
+```{r echo=TRUE}
+polls %>% 
+   mutate(week = round_date(startdate, 'week')) %>%
+   group_by(week) %>%
+   summarize(ave_T = mean(rawpoll_trump)) %>%
+   qplot(week, ave_T, data=., ylim = c(20,50))
+```
+
+(c) [10 points] Provide the loess fit for `rawpoll_trump` using `span = 0.2` and `degree = 1`. In order to use the loess function, we make a new variable `day` and fit a smooth line of `rawpoll_trump` versus `day`. Provide the following plot.
+```{r echo=TRUE}
+span = 0.2
+polls$day = as.numeric(polls$startdate)
+fit = loess(rawpoll_trump ~ day, degree = 1,
+            span = span, data = polls)
+polls %>% mutate(smooth = fit$fitted) %>%
+   ggplot(aes(startdate, rawpoll_trump)) +
+   geom_point(size = 3, alpha = 0.5, color = "grey") +
+   geom_line(aes(startdate, smooth), color = "red")
+```

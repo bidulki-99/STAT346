@@ -1,0 +1,276 @@
+---
+title: "STAT346: Statistical Data Science I"
+subtitle: "Midterm: Thursday, Oct 20 2022, 02:00--03:20 p.m."
+author: "Yoon Minseo / 2021320322"
+output:
+  pdf_document: default
+  word_document: default
+fontsize: 11pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4, fig.align ="center", out.width = "80%", warning=FALSE, message=FALSE) # global options
+library(tidyverse)
+library(ggplot2)
+```
+
+
+# Instructions
+1. This exam covers material from **Introduction to Data Science**, Chapter 1--8 and 10.
+
+
+1. You may use any books or online resources you want during this examination,
+but you may not communicate with any person other than your examiner.
+
+1. You are required to use the RStudio IDE for this exam. 
+
+1. You should work on the provided exam template.
+When you finalize your exam, you should submit your paper in pdf
+as well as its .rmd source file. They should have the following name:
+
+   + `stat346_mid_yourID.pdf` 
+   + `stat346_mid_yourID.rmd`
+
+1. You should submit your paper no later than 3:20 p.m. There will be a deduction for the late submission (2 points per 1 minute). Still, you have to finish your submission by 3:30pm at the latest.
+ 
+
+---
+
+# Problem Set \#0 (5 Points)
+Run the following code, and show the result.
+```{r echo = TRUE}
+rm(list = ls())
+ls()
+```
+
+# Problem Set \#1 (30 Points)
+We use the `gapminder` data by calling `library(dslabs)`:
+
+```{r}
+library(dslabs)
+data(gapminder)
+```
+
+   Use `dplyr` functions to address the following questions:
+
+```{r, echo=F}
+library(tidyverse)
+```   
+### (a) [5 points] Add a new variable *gdpPercap* (gdp per population) and draw a time series plot of *gdpPercap* versus *year* for the France, Italy, and United Kingdom. Please make just one plot so that we can compare. 
+
++ (sol)
+```{r echo = TRUE}
+gapminder <- gapminder %>%
+   mutate(gdpPercap = gdp / population)
+gapminder %>%
+   filter(country %in% c('France', 'Italy', 'United Kingdom')) %>%
+   ggplot(aes(year, gdpPercap, col = country)) +
+   geom_line()
+```
+
+### (b) [5 point] Which country in the Southern Europe had the top 5 largest `gdp per capita per day` in 2011? Show the result with *country, population, gdp* and *gdp per capity per day* only. Interpret the result considering the difference between *gdp* and *gdp per capita per day*.  
+
++ (sol)
+```{r echo = TRUE}
+gapminder %>%
+   filter(region == 'Southern Europe' & year == 2011) %>%
+   mutate(gdpPercapPerday = gdpPercap / 365) %>%
+   select(country, population, gdp, gdpPercapPerday) %>%
+   arrange(desc(gdpPercapPerday)) %>%
+   head(n=5)
+```
+Answer: Italy, Spain, Greece, Slovenia, and Portugal
+
+Interpretation: Even in countries with high GDP, if the population is large, GDP per capita day can be small.
+
+On the contrary, even in countries with low GDP, if the number of people is small, GDP per capita day can be large.
+
+### (c) [10 points] What was the average infant mortality across each continent in the 1990's ($1990 \leq \text{year} < 2000$)? Make one line code using the pipe operator.
+
++ (sol)
+```{r echo = TRUE}
+gapminder %>%
+   group_by(continent) %>%
+   filter(between(year, 1990, 1999) & !is.na(infant_mortality)) %>%
+   summarize(avg_infant_mortality = mean(infant_mortality))
+```
+Answer:
+
+Africa: 86.53078
+
+Americas: 29.26818
+
+Asia: 43.16600
+
+Europe: 11.57282
+
+Oceania: 29.70300
+
+### (d) [10 points] What 5 countries have the lowest average life expectancy between 2006 and 2016 ($2006 \leq \text{year} \leq 2016$)? 
+
++ (sol)
+```{r echo = TRUE}
+gapminder %>%
+   group_by(country) %>%
+   filter(between(year, 2006, 2016) & !is.na(life_expectancy)) %>%
+   summarize(avg_life_expectancy = mean(life_expectancy)) %>%
+   arrange(avg_life_expectancy) %>%
+   head(n=5)
+```
+Answer: Lesotho, Swaziland, Central African Republic, Zimbabwe, and Zambia
+
+# Problem Set \#2 (40 Points)
+
+Consider `brexit_polls` data set from the 
+`dslabs` package:
+
+```{r}
+library(dslabs)
+data(brexit_polls)
+```
+
+For convenience, we assume that there is no overlap in the sample among these polls.
+Use the `ggplot2` and `dplyr` package with a pipe operator  to answer the followings:
+
+```{r echo = TRUE, message = FALSE, warning = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+###   (a) [5 points] Check if `brexit_polls` is tibble data format, and if not, convert it to a tibble format and show the first 3 observations.
+
++ (sol)
+```{r echo = TRUE}
+class(brexit_polls)
+```
+```{r echo = TRUE, warning = FALSE}
+brexit_polls <- as.tibble(brexit_polls)
+class(brexit_polls)
+```
+```{r echo = TRUE}
+head(brexit_polls, 3)
+```
+
+###   (b) [5 points] Select variables *pollster*, *poll_type*, *samplesize*, *leave* only and save this data into `brexit2`.  
+
++ (sol)
+```{r echo = TRUE}
+brexit2 <- brexit_polls %>%
+   select(pollster, poll_type, samplesize, leave)
+brexit2
+```
+
+###   (c) [5 points] Add a column whose variable name is *leavenum* which is defined to be the number of sample in each poll voting Leave. Save this tibble data into `brexit3`.
+
++ (sol)
+```{r echo = TRUE}
+brexit3 <- brexit2 %>%
+   mutate(leavenum = samplesize * leave)
+brexit3
+```
+
+###   (d) [5 points] Make a one-line code using the pipe operator which combines the above (a)-(c) operations (except printing the first 3 observations) and save this into `brexit4`. Then check if your data `brexit3` and `brexit4` are equivalent by using *identical* function.
+
++ (sol)
+```{r echo = TRUE}
+brexit4 <- as.tibble(brexit_polls) %>%
+   select(pollster, poll_type, samplesize, leave) %>%
+   mutate(leavenum = samplesize * leave)
+identical(brexit3, brexit4)
+```
+  
+###   (e) [5 points] Re-create the following box plot.  
+   
++ (sol)
+```{r echo = TRUE}
+brexit3 %>% 
+   ggplot(aes(x = poll_type, y = leave, fill = poll_type)) +
+   geom_boxplot() +
+   labs(title = 'Boxplots') +
+   xlab('Poll Type') +
+   ylab('Proportion voting Leave') +
+   theme(legend.position = 'none')
+```
+
+###   (f) [5 points] Compute the median and mean of *Proportion voting Leave* in each two types of poll (online or telephone). 
+   
++ (sol)
+```{r echo = TRUE}
+brexit3 %>%
+   group_by(poll_type) %>%
+   summarize(median = median(leave), mean = mean(leave))
+```
+Answer:
+
+Online: Median is 0.43. Mean is 0.4258824.
+
+Telephone: Median is 0.41. Mean is 0.4150000.
+
+###   (g) [10 points] Calculate the percentage of the case per each poll type where the *proportion voting Leave* is larger than or equal to the *overall* mean. Make the code using at most two lines using the pipe operator and *pull* function.
+
++ (sol)
+```{r echo = TRUE}
+overall_mean <- brexit3 %>%
+   summarize(total_mean = mean(leave)) %>%
+   pull(total_mean)
+
+brexit3 %>%
+   group_by(poll_type) %>%
+   summarize(percentage = length(leave[leave >= overall_mean]) / length(leave) * 100)
+```
+Answer: 
+
+Online: 50.58824%
+
+Telephone: 38.09524%
+
+# Problem Set \#3 (25 Points)
+### (a) [5 points] Fix a seed number as 100 and generate 50 observations from $N(10,10^2)$. Save this data into the tibble object $normdat$.
+
++ (sol)
+```{r echo = TRUE}
+set.seed(100)
+normdat <- as.tibble(rnorm(100, 10, 10))
+normdat
+```
+
+### (b) [5 points] Generate a histogram of the above data and QQ plot. For the QQ plot, use the scaled data. Provide these two plots in one canvas using `grid.arrange`.
+
++ (sol)
+```{r echo = TRUE, message = FALSE}
+library(gridExtra)
+p1 <- normdat %>% ggplot(aes(x = value)) + geom_histogram()
+p2 <- normdat %>% ggplot(aes(sample = scale(value))) + geom_qq()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+### (c) [15 points] Suppose we generate 50 observations from $N(10,10^2)$ at random, and we are interested in the distribution of the smallest number. Try Monte Carlo simulations to first check the histogram (with binwidth 3) of such smallest number, and to check how rare is a value -20. Set the seed number as 100 and the iteration number as 10000.  
+
++ (sol)
+```{r echo = TRUE}
+set.seed(100)
+smallest <- function() {
+   normdat <- rnorm(50, 10, 10)
+   min(normdat)
+}
+
+B <- 10000
+results <- as.tibble(replicate(B, smallest()))
+results %>% 
+   ggplot(aes(x = value)) +
+   geom_histogram(binwidth = 3)
+```
+```{r echo = TRUE}
+mean(results < -20)
+```
+```{r echo = TRUE}
+mean(results == -20)
+```
+
+Answer: 
+
+When the problem is translated directly, it is interpreted as checking how rare the value of -20 is exactly.
+
+However, due to the characteristic of the "rnorm" that randomly generates the real number, it may be considered impossible to have a exact value of -20.
+
+Therefore, I attached both the ratio of values less than -20 (0.0686), which is one of the conventional intention of the problem, and the ratio of the exact value of -20 (0), which is the result of direct translation of the problem.

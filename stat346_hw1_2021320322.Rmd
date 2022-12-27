@@ -1,0 +1,145 @@
+---
+title: |
+  | \LARGE Homework assignment #1
+author: |
+  | \large \rm 2021320322 / Minseo Yoon
+date: |
+  | \rm \today
+output:
+  pdf_document:
+    extra_dependencies: ["kotex"]
+fontsize: 11pt
+---
+
+
+# 2.8.
+
+2.8.1
+```{r echo=TRUE}
+temp <- c(35, 88, 42, 84, 81, 30)
+temp
+```
+2.8.7
+```{r echo=TRUE}
+v1 <- seq(1, 99, 2)
+v1
+```
+2.8.8
+```{r echo=TRUE}
+v2 <- seq(6, 55, 4/7)
+length(v2)
+```
+2.8.9
+```{r echo=TRUE}
+class(a <- seq(1, 10, 0.5))
+```
+2.8.10
+```{r echo=TRUE}
+class(a <- seq(1, 10))
+```
+2.8.11
+```{r echo=TRUE}
+class(a <- 1L)
+```
+2.8.12
+```{r echo=TRUE}
+x <- c("1", "3", "5")
+x <- as.integer(x)
+class(x)
+```
+   
+# 2.10
+```{r echo=TRUE, warning=FALSE}
+library(dslabs)
+data("murders")
+```
+
+2.10.5
+```{r echo=TRUE}
+ranks <- rank(murders$population)
+my_df <- data.frame(state = murders$state, ranks = ranks)
+my_df
+```
+2.10.6
+```{r echo=TRUE}
+ind <- order(murders$population)
+my_df <- data.frame(state = murders$state[ind], ranks = ranks[ind])
+my_df
+```
+2.10.7
+```{r echo=TRUE}
+data("na_example")
+ind <- is.na(na_example)
+sum(ind)
+```
+2.10.8
+```{r echo=TRUE}
+mean(na_example[!ind])
+```
+
+# 2.14
+
+2.14.1
+```{r echo=TRUE}
+murder_rate <- murders$total / murders$population * 100000
+murder_rate
+```
+```{r echo=TRUE}
+low <- murder_rate < 1
+low
+```
+2.14.2
+```{r echo=TRUE}
+which(low)
+```
+2.14.3
+```{r echo=TRUE}
+murders$state[which(low)]
+```
+2.14.4
+```{r echo=TRUE}
+murders$state[low & murders$region == "Northeast"]
+```
+2.14.5
+```{r echo=TRUE}
+length(murder_rate[murder_rate < mean(murder_rate)])
+```
+2.14.6
+```{r echo=TRUE}
+ind <- match(c("AK", "MI", "IA"), murders$abb)
+murders$state[ind]
+```
+2.14.7
+```{r echo=TRUE}
+abbs <- c("MA", "ME", "MI", "MO", "MU")
+actual_abbs <- abbs %in% murders$abb
+actual_abbs
+```
+2.14.8
+```{r echo=TRUE}
+abbs[which(!actual_abbs)]
+```
+
+# 3.6
+
+3.6.7
+```{r echo=TRUE}
+compute_s_n <- function(n) {
+  return (sum(seq(1, n) ^ 2))
+}
+compute_s_n(10)
+```
+3.6.8
+```{r echo=TRUE}
+s_n <- vector("numeric", 25)
+for (i in 1:25) {
+  s_n[i] <- compute_s_n(i)
+}
+s_n
+```
+3.6.9
+```{r echo=TRUE}
+s_n <- vector("numeric", 25)
+s_n <- sapply(1:25, compute_s_n)
+s_n
+```

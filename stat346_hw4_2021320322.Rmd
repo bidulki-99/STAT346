@@ -1,0 +1,202 @@
+---
+title: |
+  | \LARGE Homework assignment #4
+author: |
+  | \large \rm 2021320322 / Minseo Yoon
+date: |
+  | \rm \today
+output:
+  pdf_document:
+    extra_dependencies: ["kotex"]
+fontsize: 11pt
+---
+
+
+# 1
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+```
+
+## 19.6.1
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(dslabs)
+data("research_funding_rates")
+research_funding_rates
+```
+
+```{r echo=TRUE}
+tab <- research_funding_rates %>%
+  summarize(awards_men = sum(awards_men),
+            awards_women = sum(awards_women),
+            nonawards_men = sum(applications_men) - awards_men,
+            nonawards_women = sum(applications_women) - awards_women) %>%
+  pivot_longer(c('awards_men', 'awards_women', 'nonawards_men', 'nonawards_women'), 
+               names_to = 'awarded', values_to = 'num') %>%
+  separate(awarded, c('awarded', 'gender')) %>%
+  pivot_wider(names_from = gender, values_from = num)
+tab
+```
+
+## 19.6.2
+```{r echo = TRUE}
+tab %>%
+  mutate(prop_men = men / sum(men) * 100,
+         prop_women = women / sum(women) * 100) %>%
+  filter(awarded == 'awards') %>%
+  select(prop_men, prop_women)
+```
+Answer: The percentage of men who is awarded among applications is about 2.8 percent higher than that of women who is awarded.
+
+## 19.6.4
+```{r echo=TRUE}
+tab.2 <- research_funding_rates %>%
+  mutate(discipline = reorder(discipline, -success_rates_total)) %>%
+  select(-applications_total, -awards_total, -success_rates_total) %>%
+  rename(rates_men = success_rates_men,
+         rates_women = success_rates_women) %>%
+  pivot_longer(c('applications_men', 'applications_women',
+                 'awards_men', 'awards_women',
+                 'rates_men', 'rates_women'), 
+               names_to = 'name', values_to = 'num') %>%
+  separate(name, c('variable_name', 'gender')) %>%
+  pivot_wider(names_from = variable_name, values_from = num) %>%
+  rename(success_rates = rates)
+
+tab.2
+```
+
+## 19.6.5
+```{r echo=TRUE}
+tab.2 %>%
+  ggplot(aes(x = discipline, y = success_rates)) +
+  geom_point(aes(size = applications, color = gender)) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+# 2
+
+## 21.5.1
+```{r echo=TRUE}
+co2_wide <- data.frame(matrix(co2, ncol = 12, byrow = TRUE)) %>% 
+  setNames(1:12) %>%
+  mutate(year = as.character(1959:1997))
+
+co2_tidy <- co2_wide %>%
+  pivot_longer(`1`:`12`, names_to = 'month', values_to = 'co2')
+
+co2_tidy
+```
+
+## 21.5.2
+```{r echo=TRUE}
+co2_tidy <- co2_wide %>%
+  pivot_longer(`1`:`12`, names_to = 'month', values_to = 'co2',
+               names_transform = list(month = as.integer))
+
+co2_tidy %>% 
+  ggplot(aes(month, co2, color = year)) + 
+  geom_line() +
+  scale_x_continuous(breaks = 1:12)
+```
+
+## 21.5.3
+Answer: b. CO2 measures are higher in the summer and the yearly average increased from 1959 to 1997.
+
+## 21.5.4
+```{r echo=TRUE}
+data(admissions)
+dat <- admissions %>% select(-applicants)
+dat %>%
+  pivot_wider(names_from = gender, values_from = admitted)
+```
+
+## 21.5.5
+```{r echo=TRUE}
+tmp <- admissions %>%
+  pivot_longer(c(admitted, applicants), names_to = 'name', values_to = 'value')
+tmp
+```
+
+## 21.5.6
+```{r echo=TRUE}
+tmp <- tmp %>%
+  unite(column_name, name, gender)
+tmp
+```
+
+## 21.5.7
+```{r echo=TRUE}
+tmp %>%
+  pivot_wider(names_from = column_name, values_from = value)
+```
+
+## 21.5.8
+```{r echo=TRUE}
+admissions %>%
+  pivot_longer(c(admitted, applicants), names_to = 'name', values_to = 'value') %>%
+  unite(column_name, name, gender) %>%
+  pivot_wider(names_from = column_name, values_from = value)
+```
+
+# 3
+## 22.4.1
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(Lahman)
+
+top <- Batting %>%
+  filter(yearID == 2016) %>%
+  arrange(desc(HR)) %>%
+  slice(1:10)
+
+top %>% as_tibble()
+```
+```{r echo=TRUE}
+People %>% as_tibble() %>% head(10)
+```
+```{r echo=TRUE}
+top <- left_join(top, People, by = 'playerID') %>%
+  select(playerID, nameFirst, nameLast, HR)
+top
+```
+
+## 22.4.2
+```{r echo=TRUE}
+Salaries <- Salaries %>%
+  filter(yearID == 2016)
+
+right_join(Salaries, top, by = 'playerID') %>%
+  select(nameFirst, nameLast, teamID, HR, salary)
+```
+
+## 22.4.3
+```{r echo=TRUE}
+co2_wide <- data.frame(matrix(co2, ncol = 12, byrow = TRUE)) %>%
+  setNames(1:12) %>%
+  mutate(year = 1959:1997) %>%
+  pivot_longer(-year, names_to = "month", values_to = "co2") %>%
+  mutate(month = as.numeric(month))
+
+yearly_avg <- co2_wide %>%
+  group_by(year) %>%
+  summarize(avg_co2 = mean(co2))
+
+yearly_avg
+```
+
+## 22.4.4
+```{r echo=TRUE}
+co2_wide <- left_join(co2_wide, yearly_avg, by = 'year') %>%
+  mutate(residual = co2 - avg_co2)
+
+co2_wide
+```
+
+## 22.4.5
+```{r echo=TRUE}
+co2_wide %>%
+  ggplot(aes(x = month, y = residual, color = factor(year))) +
+  geom_line() +
+  scale_x_continuous(breaks = 1:12)
+```

@@ -1,0 +1,239 @@
+---
+title: |
+  | \LARGE Homework assignment #2
+author: |
+  | \large \rm 2021320322 / Minseo Yoon
+date: |
+  | \rm \today
+output:
+  pdf_document:
+    extra_dependencies: ["kotex"]
+fontsize: 11pt
+---
+
+
+# 1
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(gapminder)
+?gapminder
+library(dplyr)
+```
+
+(a)
+```{r echo=TRUE}
+gapminder %>%
+  group_by(continent) %>%
+  summarize(n_distinct(country))
+```
+(b)
+```{r echo=TRUE}
+gapminder %>%
+  filter(continent == 'Europe', year == 1997) %>%
+  arrange(gdpPercap) %>%
+  head(n=1)
+```
+Answer: Albania
+```{r echo=TRUE}
+gapminder %>%
+  filter(continent == 'Europe', year == 2007) %>%
+  arrange(gdpPercap) %>%
+  head(n=1)
+```
+Answer: Albania
+
+(c)
+```{r echo=TRUE}
+gapminder %>%
+  filter(year >= 1970 & year < 1980) %>%
+  group_by(continent) %>%
+  summarize(avg = mean(lifeExp))
+```
+(d)
+```{r echo=TRUE}
+gapminder %>%
+  mutate(gdp = gdpPercap * pop) %>%
+  group_by(country) %>%
+  summarize(totalgdp = sum(gdp)) %>%
+  arrange(desc(totalgdp)) %>%
+  head(n=5)
+```
+(e)
+```{r echo=TRUE}
+gapminder %>%
+  select(country, lifeExp, year) %>%
+  filter(lifeExp >= 82)
+```
+(f)
+```{r echo=TRUE}
+gapminder %>%
+  filter(continent != 'Europe') %>%
+  group_by(continent, year) %>%
+  summarize(meanPop = mean(pop)) %>%
+  arrange(desc(meanPop))
+```
+Answer: Asia, 2007
+
+# 2
+
+```{r echo=TRUE, warning=FALSE}
+library(nycflights13)
+?flights
+?planes
+?weather
+```
+
+(a)
+```{r echo=TRUE}
+flights %>%
+  group_by(month) %>%
+  summarize(cancelled = sum(is.na(dep_time)), total = n(), 
+            prop = cancelled / total) %>%
+  arrange(prop)
+```
+Highest: February, Lowest: October
+
+It is estimated that flights are often cancelled in summer and winter due to bad weather (rain, snow, and so on).
+
+(b)
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(ggplot2)
+```
+```{r echo=TRUE}
+flights %>%
+  filter(year == 2013 & !is.na(tailnum)) %>%
+  group_by(tailnum) %>%
+  summarize(num = n()) %>%
+  arrange(desc(num)) %>%
+  head(n=1)
+```
+```{r echo=TRUE, warning=FALSE, massage=FALSE}
+library(lubridate)
+```
+```{r echo=TRUE}
+flights %>%
+  filter(tailnum == 'N725MQ') %>%
+  mutate(date = paste(sprintf('%04d-%02d-%02d', year, month, day)),
+         weeks = week(date)) %>%
+  group_by(weeks) %>%
+  summarize(times = n()) %>%
+  ggplot(aes(x = weeks, y = times)) +
+  geom_point() +
+  geom_line() +
+  ggtitle('Number of trips per week over 2013')
+```
+(c)
+```{r echo=TRUE}
+planes %>%
+  select(tailnum, year) %>%
+  arrange(year) %>%
+  head(n=1)
+```
+```{r echo=TRUE}
+planes %>%
+  summarize(plane.num = n_distinct(tailnum))
+```
+(d)
+```{r echo=TRUE}
+weather %>%
+  filter(month == 7) %>%
+  ggplot(aes(x = temp)) +
+  geom_histogram() +
+  ggtitle('Distribution of temperature in July 2013')
+```
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(ggbreak)
+```
+```{r echo=TRUE}
+weather %>%
+  group_by(month) %>%
+  ggplot(aes(x = month, y = wind_speed)) +
+  geom_boxplot() +
+  xlab('') +
+  theme(axis.ticks.x = element_line(NA),
+        axis.text.x = element_blank()) +
+  scale_y_break(c(50, 1040))
+```
+```{r echo=TRUE}
+quan <- quantile(weather$wind_speed, na.rm=TRUE)
+iqr <- quan[4] - quan[2]
+
+weather %>%
+  filter(wind_speed >= quan[4] + 1.5 * iqr) %>%
+  arrange(desc(wind_speed))
+```
+Important outlier: 1048.361
+```{r echo=TRUE}
+weather %>%
+  filter(dewp != is.na(dewp) & humid != is.na(humid)) %>%
+  ggplot(aes(dewp, humid)) +
+  geom_point(size = 1) +
+  geom_smooth() +
+  ggtitle('Relationship between dewp and humid')
+```
+```{r echo=TRUE}
+weather %>%
+  summarize(cor(dewp, humid, use = 'complete.obs'))
+```
+Answer: As the dewp increases, so does the humid. - a positive relationship
+
+```{r echo=TRUE}
+weather %>%
+  ggplot(aes(precip, visib)) +
+  geom_point(size = 1) +
+  geom_smooth() +
+  ggtitle('Relationship between precip and visib')
+```
+```{r echo=TRUE}
+weather %>%
+  summarize(cor(precip, visib, use = 'complete.obs'))
+```
+Answer: Although not apparent, visib tends to decrease as the precip increases. - a weak, negative relationship
+
+# 3
+```{r echo=TRUE}
+?diamonds
+```
+(a)
+```{r echo=TRUE}
+hist(x = diamonds$carat, col = 'steelblue', xlab = 'Carat')
+```
+(b)
+```{r echo=TRUE}
+qplot(x = depth, data = diamonds)
+```
+(c)
+```{r echo=TRUE}
+qplot(x = cut, y = price, data = diamonds, geom = 'violin', fill = cut)
+```
+
+# 4
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(MASS)
+library(tidyverse)
+```
+```{r echo=TRUE}
+as_tibble(Cars93)
+```
+(a)
+```{r echo=TRUE}
+ggplot(data = Cars93, aes(x = MPG.highway, y = Price)) +
+  geom_point(aes(size = Horsepower))
+```
+(b)
+```{r echo=TRUE}
+ggplot(data = Cars93, aes(x = MPG.highway, y = Price)) +
+  geom_point(aes(size = Horsepower, color = Origin))
+```
+(c)
+```{r echo=TRUE}
+ggplot(data = Cars93, aes(x = MPG.highway, y = Price)) +
+  geom_point(aes(size = Horsepower, color = Origin)) +
+  stat_smooth()
+```
+(d)
+```{r echo=TRUE}
+ggplot(data = Cars93, aes(x = MPG.highway, y = Price)) +
+  geom_point(aes(size = Horsepower, color = Origin)) +
+  facet_grid(facets = Cars93$Origin)
+```

@@ -1,0 +1,193 @@
+---
+title: |
+  | \LARGE Homework assignment #3
+author: |
+  | \large \rm 2021320322 / Minseo Yoon
+date: |
+  | \rm \today
+output:
+  pdf_document:
+    extra_dependencies: ["kotex"]
+fontsize: 11pt
+---
+
+
+# 1
+
+## 15.5.1
+
+```{r echo=TRUE}
+take_sample <- function(p, N) {
+  x <- sample(c(0, 1), size = N, replace = TRUE, prob = c(1-p, p))
+  mean(x)
+}
+```
+
+## 15.5.2
+
+```{r echo=TRUE}
+p <- 0.45
+errors <- replicate(10000, take_sample(p, 100) - p)
+head(errors)
+```
+
+## 15.5.3
+```{r echo=TRUE}
+mean(errors)
+```
+```{r echo=TRUE}
+hist(errors)
+```
+Answer: c. The errors are symmetrically distributed around $0$.
+
+## 15.5.9
+Answer: b. approximately normal with expected value $p$ and standard error $\sqrt{p(1-p)/N}$
+
+## 15.5.10
+Answer: b. approximately normal with expected value $0$ and standard error $\sqrt{p(1-p)/N}$
+
+## 15.5.11
+```{r echo=TRUE}
+qqnorm(errors); qqline(errors)
+```
+
+## 15.5.12
+```{r echo=TRUE}
+p <- 0.45
+N <- 100
+1 - pnorm(0.5, p, sqrt(p * (1-p) / N))
+```
+
+# 2
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(dslabs)
+data("polls_us_election_2016")
+library(tidyverse)
+polls <- polls_us_election_2016 %>% 
+  filter(enddate >= "2016-10-31" & state == "U.S.")
+```
+
+## 15.7.1
+```{r echo=TRUE}
+N <- polls$samplesize[1]
+x_hat <- polls$rawpoll_clinton[1] / 100
+c(x_hat - qnorm(0.975) * sqrt(x_hat * (1-x_hat) / N), 
+  x_hat + qnorm(0.975) * sqrt(x_hat * (1-x_hat) / N))
+```
+
+## 15.7.2
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+library(dplyr)
+polls <- polls %>%
+  mutate(x_hat = polls$rawpoll_clinton / 100, se_hat = sqrt(x_hat * (1-x_hat) / samplesize),
+         lower = x_hat - qnorm(0.975) * se_hat,
+         upper = x_hat + qnorm(0.975) * se_hat) %>%
+  select(pollster, enddate, x_hat, lower, upper)
+head(polls)
+```
+
+## 15.7.3
+```{r echo=TRUE}
+polls <- polls %>%
+  mutate(hit = lower <= 0.482 & 0.482 <= upper)
+head(polls)
+```
+
+## 15.7.4
+```{r echo=TRUE}
+polls %>%
+  summarize(mean(hit))
+```
+Answer: 0.3142857
+
+## 15.7.5
+Answer: 0.95
+
+## 15.7.6
+```{r echo=TRUE}
+polls <- polls_us_election_2016 %>%
+  filter(enddate >= "2016-10-31" & state == "U.S.")  %>%
+  mutate(d_hat = rawpoll_clinton / 100 - rawpoll_trump / 100)
+
+N <- polls$samplesize[1]
+d_hat <- polls$d_hat[1]
+c(d_hat - qnorm(0.975) * sqrt(d_hat * (1-d_hat) / N), 
+  d_hat + qnorm(0.975) * sqrt(d_hat * (1-d_hat) / N))
+```
+
+# 3
+```{r echo=TRUE, warning=FALSE}
+library(Lahman)
+library(ggplot2)
+```
+
+## 18.10.1
+```{r echo=TRUE}
+Teams %>%
+  filter(yearID == 2001) %>%
+  group_by(teamID) %>%
+  mutate(PA = BB + AB, OPS = BB/PA + (H + X2B + 2*X3B + 3*HR)/AB) %>%
+  ggplot(aes(x = OPS, y = R / G)) +
+  xlab('OPS') +
+  ylab('Runs per game') +
+  geom_point()
+```
+
+## 18.10.2
+```{r echo=TRUE}
+corr <- Teams %>%
+  filter(yearID >= 1962) %>%
+  group_by(yearID) %>%
+  mutate(PA = BB + AB, OPS = BB/PA + (H + X2B + 2*X3B + 3*HR)/AB) %>%
+  summarize(correlation = cor(R/G, OPS))
+head(corr)
+```
+```{r echo=TRUE}
+corr %>%
+  ggplot(aes(x = yearID, y = correlation)) +
+  geom_point()
+```
+
+## 18.10.3
+Answer: $\frac{AB}{PA}$
+
+## 18.10.4
+```{r echo=TRUE}
+Teams %>%
+  filter(yearID >= 1962) %>%
+  group_by(teamID) %>%
+  mutate(PA = AB + BB, weight = AB / PA) %>%
+  ggplot(aes(x = yearID, y = weight)) +
+  geom_point(aes(color = teamID)) +
+  theme(legend.position = 'none') +
+  facet_wrap(~teamID)
+```
+```{r echo=TRUE}
+Teams %>%
+  filter(yearID >= 1962) %>%
+  group_by(yearID) %>%
+  mutate(PA = sum(AB) + sum(BB), weight = sum(AB) / PA) %>%
+  ggplot(aes(x = yearID, y = weight)) +
+  geom_point()
+```
+```{r echo=TRUE}
+Teams %>%
+  filter(yearID >= 1962) %>%
+  mutate(PA = sum(AB) + sum(BB), weight = sum(AB) / PA) %>%
+  summarize(overall_average = mean(weight))
+```
+Overall average: 0.9127671
+
+# 18.10.5
+```{r echo=TRUE}
+model <- Teams %>%
+  filter(yearID >= 1962) %>%
+  mutate(BB = BB/G, singles = (H-X2B-X3B-HR)/G, doubles = X2B/G,
+         triples = X3B/G, HR=HR/G, R=R/G) %>%
+  lm(R ~ BB + singles + doubles + triples + HR, data = .)
+model
+```
+```{r echo=TRUE}
+model$coefficients / model$coefficients[3]
+```
+Answer: $0.75 \times BB + singles + 1.44 \times doubles + 2.54 \times triples + 3.04 \times HR$
